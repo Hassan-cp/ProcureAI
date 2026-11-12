@@ -50,11 +50,14 @@ function App() {
           fetch(`${API_BASE}/stats`),
           fetch(`${API_BASE}/total-spending`),
         ])
+
         if (!statsResponse.ok || !spendingResponse.ok) {
           throw new Error('Failed to load statistics')
         }
+
         const statsData = await statsResponse.json()
         const spendingData = await spendingResponse.json()
+
         setStats({
           purchases: statsData.total_purchases,
           spending: spendingData.total_spending,
@@ -65,6 +68,7 @@ function App() {
         setStatsLoading(false)
       }
     }
+
     loadStats()
   }, [])
 
@@ -89,8 +93,27 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: trimmed }),
       })
-      if (!response.ok) throw new Error('Request failed')
+
+      if (!response.ok) {
+        if (response.status === 400 || response.status === 422) {
+          throw new Error(
+            'I could not process that question. Please ask about procurement data or rephrase your request.'
+          )
+        }
+
+        if (response.status === 503) {
+          throw new Error(
+            'The AI assistant is temporarily unavailable. Please try again shortly.'
+          )
+        }
+
+        throw new Error(
+          'Something went wrong while processing your question. Please try again.'
+        )
+      }
+
       const data = await response.json()
+
       setMessages((prev) => [
         ...prev,
         {
@@ -98,8 +121,17 @@ function App() {
           content: data.answer || 'No answer was returned.',
         },
       ])
-    } catch {
-      setChatError('Unable to get an answer. Please check the backend.')
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setChatError(
+          'Cannot connect to the server. Please check that the backend is running.'
+        )
+      } else {
+        setChatError(
+          error.message ||
+          'Something went wrong while processing your question. Please try again.'
+        )
+      }
     } finally {
       setLoading(false)
     }
@@ -137,7 +169,11 @@ function App() {
               <p className="text-xs text-slate-400">Procurement Intelligence</p>
             </div>
           </div>
-          <button type="button" className="lg:hidden" onClick={() => setSidebarOpen(false)}>
+          <button
+            type="button"
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          >
             <X size={20} />
           </button>
         </div>
@@ -146,13 +182,29 @@ function App() {
           <p className="mb-4 px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
             Workspace
           </p>
+
           <nav className="space-y-2">
-            <button type="button" onClick={() => changePage('dashboard')}
-              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium ${activePage === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
+            <button
+              type="button"
+              onClick={() => changePage('dashboard')}
+              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium ${
+                activePage === 'dashboard'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-white/10'
+              }`}
+            >
               <LayoutDashboard size={19} /> Dashboard
             </button>
-            <button type="button" onClick={() => changePage('assistant')}
-              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium ${activePage === 'assistant' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
+
+            <button
+              type="button"
+              onClick={() => changePage('assistant')}
+              className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium ${
+                activePage === 'assistant'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:bg-white/10'
+              }`}
+            >
               <MessageSquare size={19} /> AI Assistant
             </button>
           </nav>
@@ -161,12 +213,15 @@ function App() {
         <div className="mt-auto p-5">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <ShieldCheck size={17} className="text-emerald-400" /> Data access
+              <ShieldCheck size={17} className="text-emerald-400" />
+              Data access
             </div>
+
             <p className="text-xs leading-6 text-slate-400">
               Procurement analytics powered by AI and read-only database queries.
             </p>
           </div>
+
           <p className="mt-5 text-center text-xs text-slate-500">
             AI Procurement Assistant · v1.0
           </p>
@@ -176,16 +231,27 @@ function App() {
       <div className="min-h-screen lg:pl-72">
         <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-5 md:px-10">
           <div className="flex items-center gap-4">
-            <button type="button" className="rounded-lg p-2 lg:hidden" onClick={() => setSidebarOpen(true)}>
+            <button
+              type="button"
+              className="rounded-lg p-2 lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
               <Menu size={23} />
             </button>
+
             <div>
-              <p className="text-xs font-medium text-slate-400">Procurement Analytics Platform</p>
+              <p className="text-xs font-medium text-slate-400">
+                Procurement Analytics Platform
+              </p>
+
               <h2 className="text-lg font-bold">
-                {activePage === 'dashboard' ? 'Overview Dashboard' : 'AI Procurement Assistant'}
+                {activePage === 'dashboard'
+                  ? 'Overview Dashboard'
+                  : 'AI Procurement Assistant'}
               </h2>
             </div>
           </div>
+
           <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             Local workspace
@@ -200,48 +266,88 @@ function App() {
                   <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold">
                     <Sparkles size={14} /> AI-Powered Analytics
                   </div>
+
                   <h2 className="text-3xl font-bold leading-tight md:text-4xl">
                     Smarter procurement<br />starts with better insights.
                   </h2>
+
                   <p className="mt-4 max-w-xl text-sm leading-7 text-blue-100">
                     Explore purchasing data, discover spending patterns,
                     and ask questions using natural language.
                   </p>
-                  <button type="button" onClick={() => changePage('assistant')}
-                    className="mt-7 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-blue-900">
+
+                  <button
+                    type="button"
+                    onClick={() => changePage('assistant')}
+                    className="mt-7 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-blue-900"
+                  >
                     Ask AI Assistant <ArrowRight size={17} />
                   </button>
                 </div>
+
                 <div className="pointer-events-none absolute -right-20 -top-20 h-80 w-80 rounded-full border-[55px] border-white/5" />
               </section>
 
               <section className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                <StatCard title="Total Purchases"
+                <StatCard
+                  title="Total Purchases"
                   value={statsLoading ? 'Loading...' : formatNumber(stats.purchases)}
-                  icon={Database} subtitle="Procurement records" color="blue" />
-                <StatCard title="Total Spending"
+                  icon={Database}
+                  subtitle="Procurement records"
+                  color="blue"
+                />
+
+                <StatCard
+                  title="Total Spending"
                   value={statsLoading ? 'Loading...' : formatCurrency(stats.spending)}
-                  icon={DollarSign} subtitle="Across all purchases" color="emerald" />
-                <StatCard title="AI Analytics" value="Ready"
-                  icon={Activity} subtitle="Natural language queries" color="violet" />
+                  icon={DollarSign}
+                  subtitle="Across all purchases"
+                  color="emerald"
+                />
+
+                <StatCard
+                  title="AI Analytics"
+                  value="Ready"
+                  icon={Activity}
+                  subtitle="Natural language queries"
+                  color="violet"
+                />
               </section>
 
-              {statsError && <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{statsError}</p>}
+              {statsError && (
+                <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
+                  {statsError}
+                </p>
+              )}
 
               <section className="mt-8 grid gap-6 xl:grid-cols-5">
                 <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm xl:col-span-3">
                   <div className="mb-6 flex items-center gap-3">
-                    <div className="rounded-xl bg-blue-50 p-3 text-blue-600"><BarChart3 size={21} /></div>
+                    <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
+                      <BarChart3 size={21} />
+                    </div>
+
                     <div>
                       <h3 className="font-bold">Explore Your Data</h3>
-                      <p className="text-sm text-slate-500">Start with a suggested procurement question</p>
+                      <p className="text-sm text-slate-500">
+                        Start with a suggested procurement question
+                      </p>
                     </div>
                   </div>
+
                   <div className="space-y-3">
                     {suggestedQuestions.map((item) => (
-                      <button key={item} type="button" onClick={() => askQuestion(item)}
-                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-4 text-left text-sm text-slate-700 hover:border-blue-300 hover:bg-blue-50">
-                        <span>{item}</span><ArrowRight size={17} className="shrink-0 text-blue-500" />
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => askQuestion(item)}
+                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-4 text-left text-sm text-slate-700 hover:border-blue-300 hover:bg-blue-50"
+                      >
+                        <span>{item}</span>
+                        <ArrowRight
+                          size={17}
+                          className="shrink-0 text-blue-500"
+                        />
                       </button>
                     ))}
                   </div>
@@ -249,12 +355,18 @@ function App() {
 
                 <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm xl:col-span-2">
                   <div className="mb-6 flex items-center gap-3">
-                    <div className="rounded-xl bg-violet-50 p-3 text-violet-600"><TrendingUp size={21} /></div>
+                    <div className="rounded-xl bg-violet-50 p-3 text-violet-600">
+                      <TrendingUp size={21} />
+                    </div>
+
                     <div>
                       <h3 className="font-bold">How It Works</h3>
-                      <p className="text-sm text-slate-500">From question to insight</p>
+                      <p className="text-sm text-slate-500">
+                        From question to insight
+                      </p>
                     </div>
                   </div>
+
                   <div className="space-y-6">
                     {[
                       ['01', 'Ask a question', 'Use everyday language.'],
@@ -263,10 +375,15 @@ function App() {
                       ['04', 'Get an answer', 'Results become readable insights.'],
                     ].map(([number, title, description]) => (
                       <div key={number} className="flex gap-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-600">{number}</div>
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-600">
+                          {number}
+                        </div>
+
                         <div>
                           <p className="text-sm font-semibold">{title}</p>
-                          <p className="mt-1 text-xs text-slate-500">{description}</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {description}
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -280,10 +397,14 @@ function App() {
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white">
                   <Bot size={24} />
                 </div>
+
                 <div>
                   <h3 className="font-bold">ProcureAI Assistant</h3>
-                  <p className="text-xs text-slate-500">Ask questions about procurement data</p>
+                  <p className="text-xs text-slate-500">
+                    Ask questions about procurement data
+                  </p>
                 </div>
+
                 <div className="ml-auto flex items-center gap-2 text-xs font-medium text-emerald-600">
                   <CheckCircle2 size={15} /> Ready
                 </div>
@@ -295,15 +416,24 @@ function App() {
                     <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-100 text-blue-600">
                       <Sparkles size={35} />
                     </div>
-                    <h3 className="text-2xl font-bold">What would you like to know?</h3>
+
+                    <h3 className="text-2xl font-bold">
+                      What would you like to know?
+                    </h3>
+
                     <p className="mt-3 text-sm leading-7 text-slate-500">
                       Ask about suppliers, departments, purchasing trends,
                       or spending patterns in your procurement database.
                     </p>
+
                     <div className="mt-7 grid w-full gap-3 sm:grid-cols-2">
                       {suggestedQuestions.map((item) => (
-                        <button key={item} type="button" onClick={() => askQuestion(item)}
-                          className="rounded-xl border border-slate-200 bg-white p-4 text-left text-xs leading-6 text-slate-600 hover:border-blue-300 hover:bg-blue-50">
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => askQuestion(item)}
+                          className="rounded-xl border border-slate-200 bg-white p-4 text-left text-xs leading-6 text-slate-600 hover:border-blue-300 hover:bg-blue-50"
+                        >
                           {item}
                         </button>
                       ))}
@@ -312,33 +442,57 @@ function App() {
                 )}
 
                 {messages.map((message, index) => (
-                  <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[90%] rounded-2xl px-5 py-4 text-sm leading-7 md:max-w-[80%] ${
+                  <div
+                    key={index}
+                    className={`flex ${
                       message.role === 'user'
-                        ? 'rounded-br-sm bg-blue-600 text-white'
-                        : 'rounded-bl-sm border border-slate-200 bg-white text-slate-700 shadow-sm'
-                    }`}>
+                        ? 'justify-end'
+                        : 'justify-start'
+                    }`}
+                  >
+                    <div
+                      className={`max-w-[90%] rounded-2xl px-5 py-4 text-sm leading-7 md:max-w-[80%] ${
+                        message.role === 'user'
+                          ? 'rounded-br-sm bg-blue-600 text-white'
+                          : 'rounded-bl-sm border border-slate-200 bg-white text-slate-700 shadow-sm'
+                      }`}
+                    >
                       {message.role === 'assistant' && (
                         <div className="mb-2 flex items-center gap-2 text-xs font-bold text-blue-600">
                           <Sparkles size={14} /> AI Answer
                         </div>
                       )}
 
-                      {/* Markdown formatting fixes the ** symbols */}
                       <div className="break-words">
                         {message.role === 'assistant' ? (
                           <ReactMarkdown
                             components={{
-                              p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                              strong: ({ children }) => <strong className="font-bold text-slate-900">{children}</strong>,
-                              ol: ({ children }) => <ol className="my-3 list-decimal space-y-2 pl-5">{children}</ol>,
-                              ul: ({ children }) => <ul className="my-3 list-disc space-y-2 pl-5">{children}</ul>,
+                              p: ({ children }) => (
+                                <p className="mb-3 last:mb-0">{children}</p>
+                              ),
+                              strong: ({ children }) => (
+                                <strong className="font-bold text-slate-900">
+                                  {children}
+                                </strong>
+                              ),
+                              ol: ({ children }) => (
+                                <ol className="my-3 list-decimal space-y-2 pl-5">
+                                  {children}
+                                </ol>
+                              ),
+                              ul: ({ children }) => (
+                                <ul className="my-3 list-disc space-y-2 pl-5">
+                                  {children}
+                                </ul>
+                              ),
                             }}
                           >
                             {message.content}
                           </ReactMarkdown>
                         ) : (
-                          <span className="whitespace-pre-wrap">{message.content}</span>
+                          <span className="whitespace-pre-wrap">
+                            {message.content}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -348,17 +502,28 @@ function App() {
                 {loading && (
                   <div className="flex justify-start">
                     <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-500 shadow-sm">
-                      <LoaderCircle size={18} className="animate-spin text-blue-600" />
+                      <LoaderCircle
+                        size={18}
+                        className="animate-spin text-blue-600"
+                      />
                       Analyzing procurement data...
                     </div>
                   </div>
                 )}
 
-                {chatError && <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{chatError}</div>}
+                {chatError && (
+                  <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
+                    {chatError}
+                  </div>
+                )}
+
                 <div ref={messagesEndRef} />
               </div>
 
-              <form onSubmit={handleSubmit} className="border-t border-slate-100 bg-white p-4 md:p-6">
+              <form
+                onSubmit={handleSubmit}
+                className="border-t border-slate-100 bg-white p-4 md:p-6"
+              >
                 <div className="flex items-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-blue-400">
                   <textarea
                     value={question}
@@ -374,11 +539,16 @@ function App() {
                     placeholder="Ask a procurement question..."
                     className="max-h-32 min-h-12 flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-slate-400"
                   />
-                  <button type="submit" disabled={loading || !question.trim()}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40">
+
+                  <button
+                    type="submit"
+                    disabled={loading || !question.trim()}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40"
+                  >
                     <Send size={19} />
                   </button>
                 </div>
+
                 <p className="mt-3 text-center text-xs text-slate-400">
                   AI-generated answers may contain mistakes. Verify important figures.
                 </p>
@@ -401,9 +571,15 @@ function StatCard({ title, value, icon: Icon, subtitle, color }) {
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-6 flex items-start justify-between">
-        <div className={`rounded-2xl p-3 ${colors[color]}`}><Icon size={23} /></div>
-        <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">Overview</span>
+        <div className={`rounded-2xl p-3 ${colors[color]}`}>
+          <Icon size={23} />
+        </div>
+
+        <span className="rounded-full bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
+          Overview
+        </span>
       </div>
+
       <p className="text-sm font-medium text-slate-500">{title}</p>
       <h3 className="mt-2 text-3xl font-bold tracking-tight">{value}</h3>
       <p className="mt-2 text-xs text-slate-400">{subtitle}</p>
