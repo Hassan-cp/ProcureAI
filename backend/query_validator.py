@@ -66,6 +66,7 @@ COMPARISON_OPERATORS = {
     "$in",
     "$nin",
     "$exists",
+    "$type",
 }
 
 ACCUMULATOR_OPERATORS = {
@@ -86,6 +87,7 @@ EXPRESSION_OPERATORS = {
     "$cond",
     "$year",
     "$month",
+    "$ceil",
 }
 
 
@@ -282,7 +284,11 @@ def validate_expression(value, available_fields, depth=0):
                 f"Expression operator not allowed: {operator}"
             )
 
-        if operator in {"$year", "$month"}:
+        if operator in {"$year", "$month", "$ceil"}:
+
+            if isinstance(argument, list):
+                if len(argument) != 1:
+                    raise ValueError(f"{operator} requires one argument.")
 
             validate_expression(
                 argument,
@@ -465,6 +471,10 @@ def validate_match(content, available_fields, depth=0):
                             )
 
                         validate_literal(item)
+
+                elif operator == "$type":
+                    if field not in DATE_FIELDS or value != "date":
+                        raise ValueError("Only date type checks on date fields are supported.")
 
                 elif operator == "$exists":
 

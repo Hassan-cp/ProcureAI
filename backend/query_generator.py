@@ -237,6 +237,12 @@ Rules:
     The executor excludes invalid and future purchase dates automatically
     for latest-date queries. Do not replace Purchase Date with Fiscal Year.
 
+Calendar quarters use Purchase Date in UTC. Unless explicitly aggregated across
+all years, group by BOTH year and quarter. MongoDB has no $quarter operator;
+use {{"$ceil": {{"$divide": [{{"$month": "$Purchase Date"}}, 3]}}}}.
+Exclude null/non-date Purchase Date before date expressions. Frequency of line
+items means record count per exact Item Name, not sum of Quantity; state this.
+
 User question:
 {question}
 
