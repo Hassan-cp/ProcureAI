@@ -262,3 +262,10 @@ ProcureAI was developed as an AI-powered procurement analysis project to demonst
 - Frontend web development
 
 The goal is to make procurement data easier to explore without requiring users to write database queries manually.
+### Download Dataset
+
+The procurement dataset is available on Google Drive:
+
+[Download purchases_cleaned.csv](https://drive.google.com/file/d/1aD2y-5ooneDEWf6UY2WKeQ1lCPPZmRiH/view?usp=sharing)
+
+Download the CSV file and place it in the `data` folder before running the import script.
