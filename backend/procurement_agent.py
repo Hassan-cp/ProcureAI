@@ -1,3 +1,5 @@
+from time import perf_counter
+
 from query_generator import generate_query
 from query_executor import execute_query
 from answer_generator import generate_answer
@@ -17,7 +19,9 @@ def ask_procurement(question: str):
 
     print("\n1. Generating MongoDB query...")
 
+    started = perf_counter()
     generated_query = generate_query(question)
+    query_done = perf_counter()
 
     if not isinstance(generated_query, dict):
         raise ValueError("Gemini response must be an object.")
@@ -36,12 +40,21 @@ def ask_procurement(question: str):
 
     # The executor validates the pipeline before running it.
     results = execute_query(pipeline)
+    database_done = perf_counter()
 
     print(f"MongoDB returned {len(results)} results.")
 
     print("\n3. Generating AI answer...")
 
-    answer = generate_answer(question, results)
+    answer = generate_answer(question, results, pipeline=pipeline)
+    answer_done = perf_counter()
+    timings_ms = {
+        "query": round((query_done-started)*1000, 2),
+        "database": round((database_done-query_done)*1000, 2),
+        "answer": round((answer_done-database_done)*1000, 2),
+        "total": round((answer_done-started)*1000, 2),
+    }
+    print("Request timings (ms):", timings_ms)
 
     print("\n4. Workflow completed!")
 
@@ -49,6 +62,7 @@ def ask_procurement(question: str):
         "question": question,
         "answer": answer,
         "results": results,
+        "timings_ms": timings_ms,
     }
 
 

@@ -4,8 +4,8 @@ from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, Response
+from pydantic import BaseModel, Field, field_validator
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
@@ -61,6 +61,11 @@ class QuestionRequest(BaseModel):
         max_length=500,
         description="Procurement question in natural language",
     )
+
+    @field_validator("question", mode="before")
+    @classmethod
+    def strip_question(cls, value):
+        return value.strip() if isinstance(value, str) else value
 
 
 # ============================================================
@@ -157,11 +162,17 @@ def get_total_spending():
 # ============================================================
 
 @app.post("/api/ask")
-def ask_ai(request: QuestionRequest):
+def ask_ai(request: QuestionRequest, http_response: Response):
     try:
         response = ask_procurement(
             request.question.strip()
         )
+
+        timings = response.get("timings_ms", {})
+        if timings:
+            http_response.headers["Server-Timing"] = ", ".join(
+                f"{phase};dur={value}" for phase, value in timings.items()
+            )
 
         # Convert MongoDB ObjectId to JSON-compatible strings
         safe_results = jsonable_encoder(
@@ -188,4 +199,3 @@ def ask_ai(request: QuestionRequest):
             status_code=503,
             detail="AI assistant temporarily unavailable",
         )
-    

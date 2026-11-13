@@ -78,7 +78,7 @@ function App() {
 
   async function askQuestion(text) {
     const trimmed = text.trim()
-    if (!trimmed || loading) return
+    if (trimmed.length < 3 || trimmed.length > 500 || loading) return
 
     setActivePage('assistant')
     setSidebarOpen(false)
@@ -542,7 +542,7 @@ function App() {
 
                   <button
                     type="submit"
-                    disabled={loading || !question.trim()}
+                    disabled={loading || question.trim().length < 3}
                     className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40"
                   >
                     <Send size={19} />

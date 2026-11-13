@@ -1,5 +1,7 @@
 from copy import deepcopy
+from datetime import datetime
 import re
+import math
 
 
 # ============================================================
@@ -118,11 +120,36 @@ def validate_output_name(name):
         )
 
 
+DATE_FIELDS = {"Purchase Date", "Creation Date"}
+
+
+def parse_iso_date(value):
+    """Accept only ISO timestamps with an explicit timezone."""
+    if not isinstance(value, str) or not re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+        r"(?:\.[0-9]{1,6})?(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])",
+        value,
+    ):
+        raise ValueError("$date requires an ISO timestamp with a timezone.")
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError("Invalid ISO date.") from error
+
+
+def validate_date_literal(field, value):
+    if field not in DATE_FIELDS or set(value) != {"$date"}:
+        raise ValueError("Only date fields accept a single $date literal.")
+    parse_iso_date(value["$date"])
+
+
 def validate_literal(value):
     """
     Allow simple JSON values and bounded arrays.
     """
 
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("Non-finite numbers are not supported.")
     if value is None or isinstance(
         value, (str, bool, int, float)
     ):
@@ -194,6 +221,8 @@ def validate_safe_regex(pattern):
 
 def validate_expression(value, available_fields, depth=0):
 
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError("Non-finite numbers are not supported.")
     if depth > 10:
         raise ValueError(
             "Expression is too deeply nested."
@@ -361,6 +390,10 @@ def validate_match(content, available_fields, depth=0):
 
         if isinstance(condition, dict):
 
+            if "$date" in condition:
+                validate_date_literal(field, condition)
+                continue
+
             require_object(
                 condition,
                 "Match condition"
@@ -423,8 +456,10 @@ def validate_match(content, available_fields, depth=0):
                         )
 
                     for item in value:
-
-                        if isinstance(item, (list, dict)):
+                        if isinstance(item, dict):
+                            validate_date_literal(field, item)
+                            continue
+                        if isinstance(item, list):
                             raise ValueError(
                                 "Nested match values are not supported."
                             )
@@ -440,12 +475,14 @@ def validate_match(content, available_fields, depth=0):
 
                 else:
 
-                    if isinstance(value, (dict, list)):
+                    if isinstance(value, dict):
+                        validate_date_literal(field, value)
+                    elif isinstance(value, list):
                         raise ValueError(
                             "Nested comparison values are not supported."
                         )
-
-                    validate_literal(value)
+                    else:
+                        validate_literal(value)
 
         else:
             validate_literal(condition)
@@ -466,7 +503,7 @@ def validate_group(content, available_fields):
 
     group_id = content["_id"]
 
-    if isinstance(group_id, dict):
+    if isinstance(group_id, dict) and not any(key.startswith("$") for key in group_id):
 
         require_object(
             group_id,
@@ -599,7 +636,7 @@ def validate_project(content, available_fields):
             "Cannot mix inclusion and exclusion in $project."
         )
 
-    if exclusion:
+    if not inclusion:
 
         return available_fields - {
             field

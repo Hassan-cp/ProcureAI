@@ -1,9 +1,10 @@
 import json
 
 from agent import llm
+from fast_queries import aggregate_answer
 
 
-def generate_answer(question: str, results: list):
+def generate_answer(question: str, results: list, pipeline=None):
     """
     Generate a clear English answer using MongoDB results.
     """
@@ -16,6 +17,11 @@ def generate_answer(question: str, results: list):
 
     if not results:
         return "No matching procurement records were found."
+
+    if pipeline is not None:
+        direct = aggregate_answer(pipeline, results)
+        if direct is not None:
+            return direct
 
     results_json = json.dumps(
         results,

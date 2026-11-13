@@ -22,6 +22,12 @@ llm = ChatGoogleGenerativeAI(
     model="gemini-3.1-flash-lite-preview",
     google_api_key=api_key,
     temperature=0,
+    # The installed SDK maps max_retries to total HTTP attempts.
+    # Avoid repeated long waits; let the API report temporary unavailability.
+    timeout=30,
+    max_retries=1,
+    thinking_level="low",
+
 )
 
 
